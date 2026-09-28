@@ -503,6 +503,134 @@ frame_ok:
   increment_metric(metricID_UnwindNativeFrames);
   return ERR_OK;
 }
+#elif defined(__s390x__)
+static EBPF_INLINE ErrorCode
+unwind_one_frame(PerCPURecord *record, bool *stop, bool *delegate_command)
+{
+  *stop = false;
+
+  UnwindState *state = &record->state;
+  u32 unwindInfo     = 0;
+  int addrDiff       = 0;
+
+  ErrorCode error = get_stack_delta(state, &addrDiff, &unwindInfo);
+  if (error) {
+    return error;
+  }
+
+  if (unwindInfo & STACK_DELTA_COMMAND_FLAG) {
+    u32 command = unwindInfo & ~STACK_DELTA_COMMAND_FLAG;
+    if (command & STACK_DELTA_NATIVE_COMMAND_BIT) {
+      if (delegate_command) {
+        *delegate_command = true;
+        return ERR_OK;
+      }
+      switch (command) {
+      case UNWIND_COMMAND_GO_ASMCGOCALL: {
+        error = go_unwind_asmcgocall(record, state);
+        if (error == ERR_OK) {
+          goto frame_ok;
+        }
+        DEBUG_PRINT("go asmcgocall unwind failed: %d", error);
+        *stop = true;
+        return ERR_OK;
+      }
+      case UNWIND_COMMAND_GO_MORESTACK: {
+        if (go_unwind_morestack(record, state) != ERR_OK) {
+          goto err_native_pc_read;
+        }
+        goto frame_ok;
+      }
+      default: return ERR_UNREACHABLE;
+      }
+    }
+
+    switch (command) {
+    case UNWIND_COMMAND_SIGNAL: {
+      // s390x rt_sigframe layout:
+      // offsetof(struct rt_sigframe, uc.uc_mcontext) = 128
+      // uc_mcontext layout: s390_regs { psw(16 bytes), gprs[16](128 bytes), ... }
+      // psw.addr at +8 from uc_mcontext base
+      // gprs[11] (FP) at +16+11*8 = +104
+      // gprs[15] (SP) at +16+15*8 = +136
+      // gprs[14] (LR/RA) at +16+14*8 = +128
+      u64 mcontext_base = state->sp + 128;
+      u64 psw_addr, gpr14, gpr15, gpr11;
+      if (bpf_probe_read_user(&psw_addr, sizeof(psw_addr), (void *)(mcontext_base + 8)) ||
+          bpf_probe_read_user(&gpr11,   sizeof(gpr11),   (void *)(mcontext_base + 16 + 11*8)) ||
+          bpf_probe_read_user(&gpr14,   sizeof(gpr14),   (void *)(mcontext_base + 16 + 14*8)) ||
+          bpf_probe_read_user(&gpr15,   sizeof(gpr15),   (void *)(mcontext_base + 16 + 15*8))) {
+        goto err_native_pc_read;
+      }
+      state->pc  = psw_addr;
+      state->sp  = gpr15;
+      state->fp  = gpr11;
+      state->r13 = gpr14;  // keep LR for potential use
+
+      state->return_address = false;
+      DEBUG_PRINT("s390x signal frame");
+      goto frame_ok;
+    }
+    case UNWIND_COMMAND_STOP: *stop = true; return ERR_OK;
+    case UNWIND_COMMAND_FRAME_POINTER:
+      if (!unwinder_unwind_frame_pointer(state)) {
+        goto err_native_pc_read;
+      }
+      goto frame_ok;
+    default: return ERR_UNREACHABLE;
+    }
+  }
+
+  UnwindInfo *info = bpf_map_lookup_elem(&unwind_info_array, &unwindInfo);
+  if (!info) {
+    increment_metric(metricID_UnwindNativeErrBadUnwindInfoIndex);
+    DEBUG_PRINT("Giving up due to invalid unwind info array index");
+    return ERR_NATIVE_BAD_UNWIND_INFO_INDEX;
+  }
+
+  s32 param = info->param;
+  if (info->mergeOpcode) {
+    DEBUG_PRINT("AddrDiff %d, merged delta %#02x", addrDiff, info->mergeOpcode);
+    if (addrDiff >= (info->mergeOpcode & ~MERGEOPCODE_NEGATIVE)) {
+      param += (info->mergeOpcode & MERGEOPCODE_NEGATIVE) ? -8 : 8;
+      DEBUG_PRINT("Merged delta match: cfaDelta=%d", unwindInfo);
+    }
+  }
+
+  state->cfa = unwind_calc_register(state, info->baseReg, param);
+
+  u64 ra = unwind_calc_register(state, info->auxBaseReg, info->auxParam);
+  if (!ra) {
+  err_native_pc_read:
+    increment_metric(metricID_UnwindNativeErrPCRead);
+    DEBUG_PRINT("Giving up due to failure to resolve RA");
+    return ERR_NATIVE_PC_READ;
+  }
+
+  // s390x has no LR-based unwinding in this context; always read RA from stack.
+  DEBUG_PRINT("RA: %016llX", (u64)ra);
+
+  u64 fpra[2];
+  fpra[0] = state->fp;
+  int err;
+  if (info->flags & UNWIND_FLAG_FRAME) {
+    err = bpf_probe_read_user(fpra, sizeof(fpra), (void *)(ra - 8));
+  } else {
+    err = bpf_probe_read_user(&fpra[1], sizeof(fpra[0]), (void *)ra);
+  }
+  if (err) {
+    goto err_native_pc_read;
+  }
+  state->fp = fpra[0];
+  ra        = fpra[1];
+
+  state->pc = ra;
+  state->sp = state->cfa;
+  unwinder_mark_nonleaf_frame(state);
+frame_ok:
+  increment_metric(metricID_UnwindNativeFrames);
+  return ERR_OK;
+}
 #else
   #error unsupported architecture
 #endif
