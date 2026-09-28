@@ -15,20 +15,24 @@ all: $(BINARIES)
 clean:
 	rm -f $(BINARIES)
 
+# On big-endian architectures (s390x), pfelf only supports little-endian ELF.
+# Cross-compile helloworld* as amd64 so unit tests can parse them.
+GOARCH_FOR_TEST ?= $(shell uname -m | sed 's/s390x/amd64/;s/x86_64/amd64/;s/aarch64/arm64/')
+
 helloworld:
-	$(GO_BINARY) build -o $@ helloworld.go
+	GOARCH=$(GOARCH_FOR_TEST) CGO_ENABLED=0 $(GO_BINARY) build -o $@ helloworld.go
 
 helloworld.pie:
-	CGO_ENABLED=1 $(GO_BINARY) build -buildmode=pie -o $@ helloworld.go
+	GOARCH=$(GOARCH_FOR_TEST) CGO_ENABLED=1 $(GO_BINARY) build -buildmode=pie -o $@ helloworld.go
 
 helloworld.stripped.pie:
-	CGO_ENABLED=1 $(GO_BINARY) build -buildmode=pie -ldflags="-s -w" -o $@ helloworld.go
+	GOARCH=$(GOARCH_FOR_TEST) CGO_ENABLED=1 $(GO_BINARY) build -buildmode=pie -ldflags="-s -w" -o $@ helloworld.go
 
 helloworld.arm64:
 	GOARCH=arm64 $(GO_BINARY) build -o $@ helloworld.go
 
 helloworld.linkexternal:
-	CGO_ENABLED=1 GOTOOLCHAIN=go1.26.7 $(GO_BINARY) build -ldflags="-linkmode=external" -o $@ helloworld.go
+	GOARCH=$(GOARCH_FOR_TEST) CGO_ENABLED=1 GOTOOLCHAIN=go1.26.7 $(GO_BINARY) build -ldflags="-linkmode=external" -o $@ helloworld.go
 
 helloworld.linkexternal.stripped: helloworld.linkexternal
 	objcopy -S $< $@
