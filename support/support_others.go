@@ -1,4 +1,4 @@
-//go:build !arm64 && !amd64
+//go:build !arm64 && !amd64 && !s390x
 
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
