@@ -1073,9 +1073,10 @@ copy_state_regs(UnwindState *state, struct pt_regs *regs, bool interrupted_kerne
 #elif defined(__s390x__)
   // s390x: PC is in psw.addr, SP is gprs[15], FP is gprs[11]
   // No compat-32 mode to check on s390x.
-  state->pc = regs->psw.addr;
-  state->sp = regs->gprs[15];
-  state->fp = regs->gprs[11];
+  state->pc  = regs->psw.addr;
+  state->sp  = regs->gprs[15];
+  state->fp  = regs->gprs[11];
+  state->r13 = regs->gprs[13];  // BCP register for HotSpot JVM interpreter
 
   // syscallno is not directly available in user_pt_regs on s390x;
   // treat all kernel-mode interrupts as potential return addresses.
