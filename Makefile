@@ -15,16 +15,20 @@ ifeq ($(NATIVE_ARCH),x86_64)
 NATIVE_ARCH := amd64
 else ifneq (,$(filter $(NATIVE_ARCH),aarch64 arm64))
 NATIVE_ARCH := arm64
+else ifneq (,$(filter $(NATIVE_ARCH),s390 s390x))
+NATIVE_ARCH := s390x
 else
 $(error Unsupported architecture: $(NATIVE_ARCH))
 endif
 
-# Valid values are: amd64, arm64.
+# Valid values are: amd64, arm64, s390x.
 TARGET_ARCH ?= $(NATIVE_ARCH)
 ifeq ($(TARGET_ARCH),arm64)
 ARCH_PREFIX := aarch64
 else ifeq ($(TARGET_ARCH),amd64)
 ARCH_PREFIX := x86_64
+else ifeq ($(TARGET_ARCH),s390x)
+ARCH_PREFIX := s390x
 else
 $(error Unsupported architecture: $(TARGET_ARCH))
 endif
@@ -32,8 +36,13 @@ endif
 export TARGET_ARCH
 export CGO_ENABLED = 0
 export GOARCH = $(TARGET_ARCH)
+ifeq ($(TARGET_ARCH),s390x)
+export CC = gcc
+export OBJCOPY = objcopy
+else
 export CC = $(ARCH_PREFIX)-linux-gnu-gcc
 export OBJCOPY = $(ARCH_PREFIX)-linux-gnu-objcopy
+endif
 
 BRANCH = $(shell git branch --show-current)
 
