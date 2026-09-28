@@ -739,6 +739,8 @@ typedef struct UnwindState {
       u64 rax, rdi, r8, r9, r11, r13, r15;
 #elif defined(__aarch64__)
       u64 r20, r22, r28;
+#elif defined(__s390x__)
+      u64 r13;  // s390x BCP register (z_R13) used by HotSpot JVM interpreter
 #endif
     };
   };
