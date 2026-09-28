@@ -118,6 +118,23 @@ struct user_pt_regs {
   u64 pstate;
 };
 typedef struct user_pt_regs bpf_user_pt_regs_t;
+#elif defined(__s390x__)
+/* s390x pt_regs: defined in arch/s390/include/uapi/asm/ptrace.h */
+typedef struct {
+  unsigned long mask;
+  unsigned long addr;
+} s390x_psw_t;
+struct pt_regs {
+  unsigned long args[1];
+  s390x_psw_t   psw;
+  unsigned long gprs[16];
+};
+struct user_pt_regs {
+  unsigned long args[1];
+  s390x_psw_t   psw;
+  unsigned long gprs[16];
+};
+typedef struct user_pt_regs bpf_user_pt_regs_t;
 #else
   #error "Unsupported architecture"
 #endif
