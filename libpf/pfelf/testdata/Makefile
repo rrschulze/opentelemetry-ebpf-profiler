@@ -7,6 +7,8 @@ CC ?= cc
 # Use llvm-objcopy/llvm-strip for cross-architecture binary manipulation.
 GOARCH_FOR_TEST ?= $(shell uname -m | sed 's/s390x/amd64/;s/x86_64/amd64/;s/aarch64/arm64/')
 OBJCOPY ?= $(shell uname -m | grep -q s390x && echo llvm-objcopy-18 || echo objcopy)
+# GNU strip uses --strip-section-headers; llvm-strip uses --strip-sections
+STRIP_SECHDR_FLAG ?= $(shell uname -m | grep -q s390x && echo --strip-sections || echo --strip-section-headers)
 STRIP ?= $(shell uname -m | grep -q s390x && echo llvm-strip-18 || echo strip)
 
 BINARIES=fixed-address \
@@ -35,4 +37,4 @@ go-binary-no-buildinfo-section: go-binary
 	$(OBJCOPY) --rename-section .go.buildinfo=.go.buildinfo.hidden $< $@
 
 go-binary-no-sections: go-binary
-	$(STRIP) --strip-section-headers -o $@ $<
+	$(STRIP) $(STRIP_SECHDR_FLAG) -o $@ $<
