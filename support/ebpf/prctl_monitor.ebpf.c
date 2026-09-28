@@ -45,6 +45,12 @@ int tracepoint__sys_exit_prctl(void *ctx)
   unsigned long option   = regs.orig_x0;
   unsigned long arg2     = regs.regs[1];
   unsigned long name_ptr = regs.regs[4];
+#elif defined(__s390x__)
+  // s390x syscall ABI: args in gprs[2..6].
+  // args[0] = orig_gpr2 preserves the original gpr2 (option) at syscall entry.
+  unsigned long option   = regs.args[0];
+  unsigned long arg2     = regs.gprs[3];
+  unsigned long name_ptr = regs.gprs[6];
 #else
   #error unsupported architecture
 #endif
