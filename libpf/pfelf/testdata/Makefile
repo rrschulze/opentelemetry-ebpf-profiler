@@ -1,8 +1,13 @@
 .PHONY: all
 
 CC ?= cc
-OBJCOPY ?= objcopy
-STRIP ?= strip
+
+# On big-endian architectures (s390x), pfelf only supports little-endian ELF.
+# Cross-compile binaries as amd64 so unit tests can parse them.
+# Use llvm-objcopy/llvm-strip for cross-architecture binary manipulation.
+GOARCH_FOR_TEST ?= $(shell uname -m | sed 's/s390x/amd64/;s/x86_64/amd64/;s/aarch64/arm64/')
+OBJCOPY ?= $(shell uname -m | grep -q s390x && echo llvm-objcopy-18 || echo objcopy)
+STRIP ?= $(shell uname -m | grep -q s390x && echo llvm-strip-18 || echo strip)
 
 BINARIES=fixed-address \
 	go-binary \
@@ -14,10 +19,6 @@ all: $(BINARIES)
 
 clean:
 	rm -f $(BINARIES)
-
-# On big-endian architectures (s390x), pfelf only supports little-endian ELF.
-# Cross-compile binaries as amd64 so unit tests can parse them.
-GOARCH_FOR_TEST ?= $(shell uname -m | sed 's/s390x/amd64/;s/x86_64/amd64/;s/aarch64/arm64/')
 
 without-debug-syms: test.c
 	$(CC) $< -s -o $@
