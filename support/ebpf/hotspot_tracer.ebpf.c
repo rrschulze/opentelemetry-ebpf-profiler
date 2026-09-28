@@ -210,6 +210,9 @@ hotspot_handle_vtable_chunks(HotspotUnwindInfo *ui, HotspotUnwindAction *action)
 #elif defined(__aarch64__)
   // On ARM64, nothing is put on stack for this at all. Unwind via LR.
   *action = UA_UNWIND_AARCH64_LR;
+#elif defined(__s390x__)
+  // On s390x, vtable stub has only the return address on stack.
+  *action = UA_UNWIND_PC_ONLY;
 #endif
 
   return ERR_OK;
@@ -243,6 +246,13 @@ static EBPF_INLINE ErrorCode hotspot_handle_interpreter(
   #define BCP_SLOT_JVM8 7
   // https://hg.openjdk.org/jdk-updates/jdk14u/file/default/src/hotspot/cpu/aarch64/assembler_aarch64.hpp#l136
   #define BCP_REGISTER  r22
+#elif defined(__s390x__)
+  // https://github.com/openjdk/jdk/blob/master/src/hotspot/cpu/s390/frame_s390.hpp
+  // BCP is kept in z_R13 on s390x; frame layout offsets are approximate.
+  #define BCP_SLOT_JVM9 8
+  #define BCP_SLOT_JVM8 7
+  // s390x: BCP register is r13 (gprs[13] in our UnwindState naming)
+  #define BCP_REGISTER  r13
 #endif
   u64 regs[FP_OFFS + 2];
   if (bpf_probe_read_user(regs, sizeof(regs), (void *)(ui->fp - sizeof(u64[FP_OFFS])))) {
@@ -342,6 +352,11 @@ static EBPF_INLINE void breadcrumb_fixup(HotspotUnwindInfo *ui)
     ui->sp += 0x10;
   }
 }
+#elif defined(__s390x__)
+static EBPF_INLINE void breadcrumb_fixup(UNUSED HotspotUnwindInfo *ui)
+{
+  // s390x: no breadcrumb mechanism in OpenJDK s390x; nothing to do.
+}
 #endif
 
 #if defined(__x86_64__)
@@ -362,6 +377,18 @@ hotspot_handle_prologue(const CodeBlobInfo *cbi, HotspotUnwindInfo *ui, HotspotU
   // early in the prologue. assume only return address on stack
   DEBUG_PRINT("jvm:  -> unwinding incomplete frame (pc)");
   *action = UA_UNWIND_PC_ONLY;
+  return ERR_OK;
+}
+#elif defined(__s390x__)
+static EBPF_INLINE ErrorCode
+hotspot_handle_prologue(const CodeBlobInfo *cbi, HotspotUnwindInfo *ui, HotspotUnwindAction *action)
+{
+  // s390x: conservative prologue handling — treat early-prologue frames as PC-only unwind.
+  if (ui->pc >= cbi->code_start + cbi->frame_comp - 4) {
+    *action = UA_UNWIND_FP_PC;
+  } else {
+    *action = UA_UNWIND_PC_ONLY;
+  }
   return ERR_OK;
 }
 #elif defined(__aarch64__)
