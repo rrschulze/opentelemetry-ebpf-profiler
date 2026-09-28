@@ -526,15 +526,6 @@ unwind_one_frame(PerCPURecord *record, bool *stop, bool *delegate_command)
         return ERR_OK;
       }
       switch (command) {
-      case UNWIND_COMMAND_GO_ASMCGOCALL: {
-        error = go_unwind_asmcgocall(record, state);
-        if (error == ERR_OK) {
-          goto frame_ok;
-        }
-        DEBUG_PRINT("go asmcgocall unwind failed: %d", error);
-        *stop = true;
-        return ERR_OK;
-      }
       case UNWIND_COMMAND_GO_MORESTACK: {
         if (go_unwind_morestack(record, state) != ERR_OK) {
           goto err_native_pc_read;
