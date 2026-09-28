@@ -1118,6 +1118,13 @@ static inline EBPF_INLINE bool ptregs_is_usermode(struct pt_regs *regs)
     return false;
   }
   return true;
+  #elif defined(__s390x__)
+  // On s390x, PSW problem-state bit indicates user mode.
+  // PSW_MASK_PSTATE = 0x0001000000000000ULL (bit 47 of 64-bit PSW mask).
+  if (!(regs->psw.mask & 0x0001000000000000ULL)) {
+    return false;
+  }
+  return true;
   #else
     #error add support for new architecture
   #endif
