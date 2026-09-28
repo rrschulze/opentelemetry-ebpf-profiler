@@ -11,6 +11,8 @@ ifeq ($(NATIVE_ARCH),x86_64)
 NATIVE_ARCH := amd64
 else ifneq (,$(filter $(NATIVE_ARCH),aarch64 arm64))
 NATIVE_ARCH := arm64
+else ifneq (,$(filter $(NATIVE_ARCH),s390 s390x))
+NATIVE_ARCH := s390x
 else
 $(error Unsupported architecture: $(NATIVE_ARCH))
 endif
@@ -18,13 +20,15 @@ endif
 # Use a placeholder like '.' or '/' as the new prefix.
 REPRODUCIBLE_PREFIX := .
 
-# Valid values: amd64, arm64.
+# Valid values: amd64, arm64, s390x.
 TARGET_ARCH ?= $(NATIVE_ARCH)
 
 TRACER_NAME ?= tracer.ebpf.$(TARGET_ARCH)
 
 ifeq ($(TARGET_ARCH),arm64)
 TARGET_FLAGS = -target aarch64-linux-gnu
+else ifeq ($(TARGET_ARCH),s390x)
+TARGET_FLAGS = -target s390x-linux-gnu
 else
 TARGET_FLAGS = -target x86_64-linux-gnu
 endif
@@ -59,6 +63,9 @@ amd64:
 
 arm64:
 	$(MAKE) TARGET_ARCH=arm64
+
+s390x:
+	$(MAKE) TARGET_ARCH=s390x
 
 errors.h: ../../tools/errors-codegen/errors.json
 	go run ../../tools/errors-codegen/main.go bpf $@
