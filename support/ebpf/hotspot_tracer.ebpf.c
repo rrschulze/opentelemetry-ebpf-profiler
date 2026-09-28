@@ -505,10 +505,9 @@ pc_only:
 }
 #elif defined(__s390x__)
 static EBPF_INLINE bool
-hotspot_handle_epilogue(const CodeBlobInfo *cbi, HotspotUnwindInfo *ui, HotspotUnwindAction *action)
+hotspot_handle_epilogue(UNUSED const CodeBlobInfo *cbi, UNUSED HotspotUnwindInfo *ui, HotspotUnwindAction *action)
 {
   // s390x: conservative epilogue — unwind via frame pointer.
-  (void)cbi;
   *action = UA_UNWIND_FRAME_POINTER;
   return true;
 }
