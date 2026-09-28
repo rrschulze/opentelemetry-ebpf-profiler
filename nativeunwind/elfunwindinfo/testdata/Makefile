@@ -19,10 +19,10 @@ helloworld:
 	$(GO_BINARY) build -o $@ helloworld.go
 
 helloworld.pie:
-	$(GO_BINARY) build -buildmode=pie -o $@ helloworld.go
+	CGO_ENABLED=1 $(GO_BINARY) build -buildmode=pie -o $@ helloworld.go
 
 helloworld.stripped.pie:
-	$(GO_BINARY) build -buildmode=pie -ldflags="-s -w" -o $@ helloworld.go
+	CGO_ENABLED=1 $(GO_BINARY) build -buildmode=pie -ldflags="-s -w" -o $@ helloworld.go
 
 helloworld.arm64:
 	GOARCH=arm64 $(GO_BINARY) build -o $@ helloworld.go
