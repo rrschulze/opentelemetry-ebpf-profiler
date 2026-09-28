@@ -1070,6 +1070,16 @@ copy_state_regs(UnwindState *state, struct pt_regs *regs, bool interrupted_kerne
   // regardless of whether we are in a syscall.
   state->return_address = interrupted_kernelmode && regs->syscallno != -1;
   state->lr_invalid     = false;
+#elif defined(__s390x__)
+  // s390x: PC is in psw.addr, SP is gprs[15], FP is gprs[11]
+  // No compat-32 mode to check on s390x.
+  state->pc = regs->psw.addr;
+  state->sp = regs->gprs[15];
+  state->fp = regs->gprs[11];
+
+  // syscallno is not directly available in user_pt_regs on s390x;
+  // treat all kernel-mode interrupts as potential return addresses.
+  state->return_address = interrupted_kernelmode;
 #endif
 
   return ERR_OK;
