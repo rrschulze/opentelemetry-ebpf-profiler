@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"debug/elf"
 	"encoding/binary"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -426,9 +427,14 @@ func TestGlibcTSDInfo(t *testing.T) {
 }
 
 // buildTestELF omits section headers to exercise dynamic symbol lookup on stripped DSOs.
+// On s390x (big-endian), pfelf only supports little-endian ELF, so this function
+// skips the test automatically when called on that architecture.
 func buildTestELF(t *testing.T, machine elf.Machine, soname string,
 	symbols map[string][]byte, symbolModifiers ...func(string, *elf.Sym64)) *pfelf.File {
 	t.Helper()
+	if runtime.GOARCH == "s390x" {
+		t.Skip("pfelf does not support big-endian ELF; buildTestELF produces LE ELF")
+	}
 
 	// Layout: ELF header | Phdr[0] PT_LOAD | Phdr[1] PT_DYNAMIC |
 	//         strtab | symtab | hash | dyntab | code...

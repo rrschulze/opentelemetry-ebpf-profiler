@@ -6,6 +6,7 @@ package elfunwindinfo
 import (
 	"fmt"
 	"math"
+	"runtime"
 	"testing"
 	"unsafe"
 
@@ -103,6 +104,9 @@ func TestGoStrategy(t *testing.T) {
 }
 
 func TestParseGoPclntab(t *testing.T) {
+	if runtime.GOARCH == "s390x" {
+		t.Skip("pfelf does not support big-endian ELF; test fixtures are s390x BE on s390x")
+	}
 	tests := map[string]struct {
 		elfFile string
 	}{
@@ -135,6 +139,9 @@ func TestParseGoPclntab(t *testing.T) {
 }
 
 func TestTextStart(t *testing.T) {
+	if runtime.GOARCH == "s390x" {
+		t.Skip("pfelf does not support big-endian ELF; test fixtures are s390x BE on s390x")
+	}
 	testsupport.RequireGeneratedTestFile(t, "testdata/helloworld.linkexternal")
 	ef, err := pfelf.Open("testdata/helloworld.linkexternal")
 	require.NoError(t, err)

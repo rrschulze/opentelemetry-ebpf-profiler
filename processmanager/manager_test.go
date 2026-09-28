@@ -191,6 +191,9 @@ func TestKernelFrameCacheIgnoresInvalidEntries(t *testing.T) {
 }
 
 func TestFrameCacheCrossProcessPollution(t *testing.T) {
+	if runtime.GOARCH == "s390x" {
+		t.Skip("pfelf does not support big-endian ELF; the test binary on s390x is BE")
+	}
 	if runtime.GOOS != "linux" {
 		t.Skip("requires Linux procfs")
 	}

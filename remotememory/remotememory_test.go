@@ -42,6 +42,9 @@ func RemoteMemTests(t *testing.T, rm RemoteMemory) {
 }
 
 func TestProcessVirtualMemory(t *testing.T) {
+	if runtime.GOARCH == "s390x" {
+		t.Skip("remotememory reads native byte order; test asserts little-endian values")
+	}
 	if runtime.GOOS != "linux" {
 		t.Skipf("unsupported os %s", runtime.GOOS)
 	}
@@ -53,6 +56,9 @@ type errReader struct{ err error }
 func (r errReader) ReadAt([]byte, int64) (int, error) { return 0, r.err }
 
 func TestReadPtrBias(t *testing.T) {
+	if runtime.GOARCH == "s390x" {
+		t.Skip("remotememory reads native byte order; test asserts little-endian layout")
+	}
 	rm := RemoteMemory{
 		ReaderAt: bytes.NewReader([]byte{0x10, 0, 0, 0, 0, 0, 0, 0}),
 		Bias:     0x4,

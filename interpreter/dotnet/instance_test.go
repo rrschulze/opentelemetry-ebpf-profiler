@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+	"runtime"
 	"testing"
 
 	"github.com/elastic/go-freelru"
@@ -76,6 +77,9 @@ func newTestDotnetInstance(rm remotememory.RemoteMemory) *dotnetInstance {
 // TestWalkRangeSectionListCycle verifies that a cyclic RangeSection.next chain
 // terminates instead of looping forever.
 func TestWalkRangeSectionListCycle(t *testing.T) {
+	if runtime.GOARCH == "s390x" {
+		t.Skip("remotememory reads native byte order; test writes little-endian pointers")
+	}
 	const (
 		r1   libpf.Address = 0x1000
 		r2   libpf.Address = 0x1040
@@ -97,6 +101,9 @@ func TestWalkRangeSectionListCycle(t *testing.T) {
 // TestWalkRangeListCycle verifies that a cyclic stub RangeList block chain
 // terminates instead of looping forever.
 func TestWalkRangeListCycle(t *testing.T) {
+	if runtime.GOARCH == "s390x" {
+		t.Skip("remotememory reads native byte order; test writes little-endian pointers")
+	}
 	const (
 		b1   libpf.Address = 0x1000
 		b2   libpf.Address = 0x1200
@@ -152,6 +159,9 @@ func putAllEntries(buf []byte, at, val libpf.Address) {
 // TestWalkRangeSectionMapAlias verifies that aliased intermediate level pointers
 // in a RangeSectionMap are deduplicated and the whole walk is bounded.
 func TestWalkRangeSectionMapAlias(t *testing.T) {
+	if runtime.GOARCH == "s390x" {
+		t.Skip("remotememory reads native byte order; test writes little-endian pointers")
+	}
 	const (
 		root     libpf.Address = 0x2000
 		l2       libpf.Address = 0x4000

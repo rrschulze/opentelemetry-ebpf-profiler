@@ -6,6 +6,7 @@ package hotspot
 import (
 	"bytes"
 	"encoding/binary"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -44,6 +45,9 @@ func (c *countingReaderAt) ReadAt(p []byte, off int64) (int, error) {
 }
 
 func TestParseIntrospectionEntryLimit(t *testing.T) {
+	if runtime.GOARCH == "s390x" {
+		t.Skip("remotememory reads native byte order; test writes little-endian struct fields")
+	}
 	// Fill every entry with a non-null type-name pointer so the loop cannot
 	// terminate on the empty-name sentinel. The loop must instead stop at the
 	// end-address cap (base + maxEntries*stride) instead of spinning forever.

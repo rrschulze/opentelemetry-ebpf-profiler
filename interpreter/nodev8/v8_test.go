@@ -6,6 +6,7 @@ package nodev8 // import "go.opentelemetry.io/ebpf-profiler/interpreter/nodev8"
 import (
 	"bytes"
 	"encoding/binary"
+	"runtime"
 	"testing"
 
 	"github.com/elastic/go-freelru"
@@ -84,6 +85,9 @@ func putUint16(buf []byte, off int, v uint16) {
 }
 
 func TestExtractStringLengthLimit(t *testing.T) {
+	if runtime.GOARCH == "s390x" {
+		t.Skip("remotememory reads native byte order; test writes little-endian length fields")
+	}
 	i := newTestV8Instance()
 	buf := make([]byte, 4096)
 	// Advertise a ~4 GiB sequence string; extraction must fail without reading
@@ -100,6 +104,9 @@ func TestExtractStringLengthLimit(t *testing.T) {
 }
 
 func TestExtractStringValid(t *testing.T) {
+	if runtime.GOARCH == "s390x" {
+		t.Skip("remotememory reads native byte order; test writes little-endian length fields")
+	}
 	i := newTestV8Instance()
 	buf := make([]byte, 4096)
 	binary.LittleEndian.PutUint32(buf[4:], 6)
@@ -115,6 +122,9 @@ func TestExtractStringValid(t *testing.T) {
 }
 
 func TestExtractStringConsCycle(t *testing.T) {
+	if runtime.GOARCH == "s390x" {
+		t.Skip("remotememory reads native byte order; test writes little-endian pointers")
+	}
 	i := newTestV8Instance()
 	const (
 		A libpf.Address = 0x1000
@@ -136,6 +146,9 @@ func TestExtractStringConsCycle(t *testing.T) {
 }
 
 func TestReadFixedTableSizeLimit(t *testing.T) {
+	if runtime.GOARCH == "s390x" {
+		t.Skip("remotememory reads native byte order; test writes little-endian length fields")
+	}
 	i := newTestV8Instance()
 	buf := make([]byte, 256)
 	// A huge SMI length whose product with itemSize would wrap a uint32.

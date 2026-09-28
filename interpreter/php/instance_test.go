@@ -6,6 +6,7 @@ package php
 import (
 	"encoding/binary"
 	"io"
+	"runtime"
 	"testing"
 
 	"github.com/elastic/go-freelru"
@@ -85,6 +86,9 @@ func buildDefaultVMStructs() *phpData {
 }
 
 func TestGetFunction_ClassName(t *testing.T) {
+	if runtime.GOARCH == "s390x" {
+		t.Skip("remotememory reads native byte order; test writes little-endian struct fields")
+	}
 	tests := []struct {
 		name             string
 		funcName         string
